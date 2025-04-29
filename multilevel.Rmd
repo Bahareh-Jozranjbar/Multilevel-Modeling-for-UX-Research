@@ -1,0 +1,101 @@
+---
+title: "Multilevel Modeling for UX Research"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+# Load libraries
+library(tidyverse)
+library(lme4)
+library(ggrepel)
+library(patchwork)
+library(ggthemes)
+
+# Set theme
+theme_set(theme_minimal())
+
+# Set seed for reproducibility
+set.seed(123)
+```
+
+## Simulate UX Data
+```{r}
+# Simulate   participant data
+n_participants <- 50
+participant_id <- factor(1:n_participants)
+
+# Simulate old design (Legacy) times
+legacy_times <- rnorm(n_participants, mean = 65, sd = 10)
+
+# Simulate new design (Novel) times (generally faster but more variable)
+improvement <- rnorm(n_participants, mean = 8, sd = 5)
+novel_times <- legacy_times - improvement
+
+# Combine into tidy format
+data <- tibble(
+  participant = rep(participant_id, each = 2),
+  design = rep(c("Legacy", "Novel"), times = n_participants),
+  time = c(legacy_times, novel_times)
+)
+
+# View sample
+head(data)
+```
+
+## Multilevel Model Fitting
+```{r}
+# Fit a linear mixed-effects model
+model <- lmer(time ~ design + (1 | participant), data = data)
+summary(model)
+```
+
+## Population-Level (Flattened) Plot
+```{r}
+population_plot <- data %>%
+  ggplot(aes(x = design, y = time, fill = design)) +
+  geom_boxplot(width = 0.4, alpha = 0.6, outlier.shape = NA) +
+  geom_jitter(width = 0.15, size = 1.5, alpha = 0.5) +
+  labs(title = "Population-Level View (Flattened)",
+       subtitle = "Ignoring participant-level differences",
+       x = "Design", y = "Task Completion Time (seconds)") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 14),
+        plot.subtitle = element_text(size = 11))
+
+# Save with transparent background
+ggsave("population_level_flattened.png", plot = population_plot, width = 7, height = 5, dpi = 300, bg = "transparent")
+```
+
+## Participant-Level Plot
+```{r}
+participant_plot <- data %>%
+  ggplot(aes(x = design, y = time, group = participant)) +
+  geom_line(alpha = 0.4, color = "gray50") +
+  geom_point(aes(color = design), size = 2) +
+  labs(title = "Participant-Level View (Multilevel)",
+       subtitle = "Capturing individual differences",
+       x = "Design", y = "Task Completion Time (seconds)") +
+  theme_minimal() +
+  scale_color_manual(values = c("#1f77b4", "#ff7f0e")) +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 14),
+        plot.subtitle = element_text(size = 11))
+
+# Save with transparent background
+ggsave("participant_level_multilevel.png", plot = participant_plot, width = 7, height = 5, dpi = 300, bg = "transparent")
+```
+
+## Combined View (Optional)
+```{r}
+combined_plot <- population_plot + participant_plot +
+  plot_annotation(title = "Why Multilevel Modeling Matters in UX Research",
+                  subtitle = "Flattened analysis vs participant-specific analysis")
+
+ggsave("combined_multilevel_vs_flattened.png", plot = combined_plot, width = 14, height = 6, dpi = 300, bg = "transparent")
+```
+
+## Notes
+- Side-by-side comparison illustrates the true value of multilevel modeling.
+
+# End of script.
